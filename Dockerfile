@@ -1,12 +1,25 @@
-FROM tomcat:9-jdk8
+# Use official Maven image with JDK 17
+FROM maven:3.9.6-eclipse-temurin-17 as build
 
-# Remove default apps (optional)
-RUN rm -rf /usr/local/tomcat/webapps/*
+# Set working directory in the container
+WORKDIR /app
 
-# Copy your WAR file into Tomcat's webapps directory
-COPY myweb.war /usr/local/tomcat/webapps/ROOT.war
+# Copy source code to container
+COPY . .
 
-# Expose default Tomcat port
-EXPOSE 8080
+# Build the project and run tests (includes Sonar if configured in pom.xml)
+RUN mvn clean verify
 
-# Start Tomcat (inherited from base image)
+# ----- Optional: If you only need the final JAR to run in a slim image -----
+
+# Use JDK-only image for runtime (smaller size)
+FROM eclipse-temurin:17-jdk
+
+# Create working directory
+WORKDIR /app
+
+# Copy built JAR from the build stage
+COPY --from=build /app/target/*.jar app.jar
+
+# Command to run the application
+ENTRYPOINT ["java", "-jar", "app.jar"]
